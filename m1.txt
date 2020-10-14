@@ -1,0 +1,174 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; I pledge on my honor that I have not given or received any
+;; unauthorized assistance on this assignment.
+;;
+;; Name: Richard Finney
+;; UID : 114193391
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+Question 1
+----------
+The first instruction loads the rax register with the value in rsp, copying the registers contents to itself.
+So, the value of rax in this scenario would be 1024. In the second command, we would be setting rax to the 
+value at the address of rsp, since the constant is 0 and thus the stack pointer does not move. Similarly,
+the value of rax in this case would also be 1024.
+
+
+Question 2
+----------
+mov rax [rbs]
+
+mov rax 42
+mov [rbx] rax
+
+
+Question 3
+----------
+One way to determine types at runtime would be to use machine words as "type headers" for each value used
+during runtime. During runtime, the compiler could mov a second value with each function call into the
+secondary return register, rdx. The value would correspond to the type of the variable being evaluated.
+For instance, 0 could represent a boolean value, 1 for an integer, 2 for a char, etc. During runtime, the
+compiler would simply just have to compare the value of rdx to whatever type its looking for, throwing an
+error if the type doesn't match the function's requirements (or the function's type).
+
+This design would be worse than the way discussed in class in that it would require more code for most 
+methods having to take into account the extra machine word attached to each variable. However, This method
+would be better in that we would be able to represent a larger pool of integers (2^64 vs 2^63).
+
+To implement add1, we would store the integer value passed in to rax and the corresponding machine word
+to represent the data type (let's use 1 for integer as an example) into rdx. After calling a function
+similar to compile-prim, the function would then comapre the value in rdx to the number it should be
+(in this case 1), and if true, would add 1 to rax, throwing an error in the opposite case. For cases of
+larger integers needing to be representing, rdx could be cleared after the initial type check to be used
+to return the larger value.
+
+
+Question 4
+----------
+
+; type Answer = Value | 'err
+ 
+; Expr -> Answer
+(define (interp e)
+  (match e
+    [(int-e i) i]
+    [(bool-e b) b]
+    [(add1-e e0)
+     (match (interp e0)
+       [(? integer? i) (add1 i)]
+       [_ 'err])]
+    [(sub1-e e0)
+     (match (interp e0)
+       [(? integer? i) (sub1 i)]
+       [_ 'err])]
+    [(zero?-e e0)
+     (match (interp e0)
+       [(? integer? i) (zero? i)]
+       [_ 'err])]
+    [(if-e e0 e1 e2)
+     (match (interp e0)
+       ['err 'err]
+       [v
+        (if v
+            (interp e1)
+            (interp e2))])]
+    [(sum-e e0
+        (let f (list e0)
+        (let g (rest f))
+        (match (f)
+            ['() 'err]
+            ['(+ ,@g)  
+                (match (g)
+                ['() 0]
+                [(x) (match (interp (x))
+                    [(? integer? i) (i)]
+                    [_ 'err])]
+                [_  (match (interp (list-ref g 0)) 
+                        [(? integer? a) (match (interp (list-ref g 1))
+                                        [(? integer? b) (interp (,@(+ ,(+ a b) ,@(rest(rest(g))))))]
+                                        [_ 'err])]
+                        [_ 'err])])])))]
+    [(prod-e e0
+        (let f (list e0)
+        (let g (rest f))
+        (match (f)
+            ['() 'err]
+            ['(* ,@g)  
+                (match (g)
+                ['() 0]
+                [(x) (match (interp (x))
+                    [(? integer? i) (x)]
+                    [_ 'err])]
+                [_  (match (interp (list-ref g 0)) 
+                        [(? integer? a) (match (interp (list-ref g 1))
+                                        [(? integer? b) (interp (,@(* ,(+ a b) ,@(rest(rest(g))))))]
+                                        [_ 'err])]
+                        [_ 'err])])])))]
+    ))
+    
+
+
+Question 5
+----------
+; Expr -> Expr
+(define (to-restricted e)
+  (match e
+    [(int-e i)     e]
+    [(bool-e b)    e]
+    [(var-e v)     e]
+    [(if-e e t f)  (if-e (to-restricted e) (to-restricted t) (to-restricted f))]
+    [(let-e bs b)  (let-e (restrict-binds bs) (to-restricted b))]
+    [(prim-e p es) (if (prim-nestCheck p es) (prim-e p es) (prim-nest p es)))
+ 
+(define (restrict-binds bnds)
+  (match bnds
+    ['() '()]
+    [(cons (binding v e) bnds) (cons (binding v (to-restricted e))
+                                     (restrict-binds bnds))]))
+
+(define (prim-nestCheck p lst)                                    ;check to see if expression is valid
+    (match (first(lst))
+    ['() #t]
+    [(cons (prim-e p1 es1) (rest(lst))) #f]
+
+(define (prim-nest p lst))                                                ;if invalid
+    (match lst
+    ['() '()]
+    [(cons (prim-e p1 es1) (rest(lst))) (if (prim-nestCheck p (first(lst))) (let c0 (prim-nest p (first(lst))
+                                                                            (let c1 (prim-nest p (rest(lst))))
+                                                                            let l0(gensym))
+                                                                            let l1(gensym)
+                                                                            ,@c0
+                                                                            ,(to-restricted c0)
+                                                                            ,@c1]
+
+(let c0 (to-restricted es1))
+
+(prim-e
+ '+
+ (list (prim-e 'sub1 (list (int-e 5))) (prim-e 'add1 (list (int-e 5)))))
+Becomes:
+
+(let-e
+ (list
+  (binding 'g348 (prim-e 'sub1 (list (int-e 5))))
+  (binding 'g347 (prim-e 'add1 (list (int-e 5)))))
+ (prim-e '+ (list (var-e 'g348) (var-e 'g347))))
+
+(prim-e
+ '+
+ (list
+  (prim-e 'sub1 (list (prim-e 'sub1 (list (int-e 6)))))
+  (prim-e 'add1 (list (int-e 5)))))
+Becomes:
+
+ (let-e
+ (list
+  (binding
+   'g352
+   (let-e
+    (list (binding 'g353 (prim-e 'sub1 (list (int-e 6)))))
+    (prim-e 'sub1 (list (var-e 'g353)))))
+  (binding 'g351 (prim-e 'add1 (list (int-e 5)))))
+ (prim-e '+ (list (var-e 'g352) (var-e 'g351))))
